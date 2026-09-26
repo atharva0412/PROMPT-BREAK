@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PROMPT//BREAK - Neural Sandbox Escape</title>
+  <meta name="description" content="Hack your way out of an unstable AI simulation using real-time terminal prompts.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="crt-overlay"></div>
+  <div class="scanlines"></div>
+
+  <div id="game-container">
+    <!-- Header / System Status Bar -->
+    <header id="hud-header">
+      <div class="corner-bl"></div>
+      <div class="corner-tr"></div>
+      
+      <div class="system-tag">
+        <span class="pulse-dot"></span>
+        <span class="glitch-text" data-text="PROMPT//BREAK">PROMPT//BREAK</span>
+        <span class="sys-version" id="sector-title-badge">SECTOR 01: SUBROUTINE ALPHA</span>
+      </div>
+
+      <div class="hud-stats">
+        <div class="stat-card" id="level-display-card">
+          <span class="stat-label">LEVEL</span>
+          <span class="stat-value" id="level-value">1 / 3</span>
+        </div>
+
+        <div class="stat-card" id="energy-display-card">
+          <span class="stat-label">ENERGY</span>
+          <div class="energy-bar-wrap">
+            <div id="energy-bar-fill"></div>
+          </div>
+          <span class="stat-value" id="energy-value">10 / 10</span>
+        </div>
+
+        <div class="hud-actions">
+          <button id="tutorial-toggle-btn" class="hud-btn" title="How To Play / Help">? GUIDE</button>
+          <button id="sound-toggle-btn" class="hud-btn" title="Toggle Audio (M)">🔊</button>
+          <button id="restart-btn" class="hud-btn alert-hover" title="Restart Sector (R)">↺ RESET</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Viewport -->
+    <main id="viewport-wrapper">
+      <div class="viewport-corners">
+        <div class="c-tl"></div><div class="c-tr"></div>
+        <div class="c-bl"></div><div class="c-br"></div>
+      </div>
+
+      <canvas id="gameCanvas" width="960" height="540"></canvas>
+
+      <!-- Prominent Action Feedback Notification Banner -->
+      <div id="action-banner" class="action-banner hidden">
+        <div class="banner-tag">OVERRIDE CONFIRMED</div>
+        <div id="banner-text" class="banner-text">PLATFORM INJECTED AT TARGET COORDINATES</div>
+      </div>
+
+
+      <!-- In-Game floating overlays (Game Over / Level Won / Game Complete) -->
+      <div id="screen-overlay" class="modal hidden">
+        <div class="modal-card">
+          <div class="modal-glow"></div>
+          <h1 id="modal-title" class="modal-heading">SYSTEM FAILURE</h1>
+          <p id="modal-msg" class="modal-desc">Consciousness disconnected from neural matrix.</p>
+          <div id="modal-stats" class="modal-stats"></div>
+          <div class="modal-actions">
+            <button id="modal-primary-btn" class="action-btn cyan-btn">TRY AGAIN</button>
+            <button id="modal-secondary-btn" class="action-btn purple-btn hidden">NEXT SECTOR</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tutorial / Guide Modal -->
+      <div id="tutorial-modal" class="modal">
+        <div class="modal-card tutorial-card">
+          <div class="modal-glow"></div>
+          <div class="tut-badge">ANOMALY ESCAPE BRIEFING</div>
+          <h1 class="modal-heading victory">HOW TO PLAY PROMPT//BREAK</h1>
+          
+          <div class="tut-grid">
+            <div class="tut-item">
+              <span class="tut-icon">🏃</span>
+              <div>
+                <strong>CONTROLS:</strong>
+                <p>Move with <kbd>A</kbd><kbd>D</kbd> or <kbd>◄</kbd><kbd>►</kbd>. Jump with <kbd>SPACE</kbd> or <kbd>W</kbd>. Reach the swirling <strong>EXIT GATEWAY</strong> to clear each sector.</p>
+              </div>
+            </div>
+
+            <div class="tut-item">
+              <span class="tut-icon">⚡</span>
+              <div>
+                <strong>PROMPTS CONSUME ENERGY:</strong>
+                <p>You begin each level with <strong>10 Energy Points (EP)</strong>. If your energy hits 0 or you touch an active enemy or laser, the simulation collapses!</p>
+              </div>
+            </div>
+
+            <div class="tut-item">
+              <span class="tut-icon">⌨️</span>
+              <div>
+                <strong>4 POWERFUL PROMPTS:</strong>
+                <ul class="tut-cmd-list">
+                  <li><code>CREATE PLATFORM</code> (2 EP): Materializes a solid cyber-ledge ahead of you or at your mouse click!</li>
+                  <li><code>DELETE ENEMY</code> (3 EP): Vaporizes the nearest sentinel drone with a lock-on laser.</li>
+                  <li><code>FREEZE ENEMIES</code> (3 EP): Puts all drones in 6s stasis. Frozen drones become safe to stand on!</li>
+                  <li><code>REVERSE GRAVITY</code> (2 EP): Inverts gravity to walk along the ceiling.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button id="start-game-btn" class="action-btn cyan-btn">ENTER SIMULATION ➔</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Command Console & Action Bar -->
+    <section id="command-console">
+      <div class="console-top-row">
+        <div class="available-commands-bar">
+          <span class="prompt-hint-label">COMMAND INJECTION DECK:</span>
+          <div class="command-chips" id="command-chips-list">
+            <button class="chip-btn" data-cmd="CREATE PLATFORM" title="Injects a solid barrier ahead or at mouse target (-2 EP)">
+              <span class="chip-icon">🧱</span>
+              <span class="chip-cmd">CREATE PLATFORM</span>
+              <span class="chip-cost">[2 EP]</span>
+            </button>
+            <button class="chip-btn" data-cmd="DELETE ENEMY" title="Vaporizes nearest sentinel drone (-3 EP)">
+              <span class="chip-icon">💥</span>
+              <span class="chip-cmd">DELETE ENEMY</span>
+              <span class="chip-cost">[3 EP]</span>
+            </button>
+            <button class="chip-btn" data-cmd="FREEZE ENEMIES" title="Locks drones in stasis for 6s. They become solid platforms! (-3 EP)">
+              <span class="chip-icon">❄️</span>
+              <span class="chip-cmd">FREEZE ENEMIES</span>
+              <span class="chip-cost">[3 EP]</span>
+            </button>
+            <button class="chip-btn" data-cmd="REVERSE GRAVITY" title="Inverts local gravitational vector (-2 EP)">
+              <span class="chip-icon">🔄</span>
+              <span class="chip-cmd">REVERSE GRAVITY</span>
+              <span class="chip-cost">[2 EP]</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Terminal Output Stream docked cleanly inside console deck -->
+      <div id="terminal-feed">
+        <div class="feed-header">AI_CORE://TERMINAL_STREAM</div>
+        <div id="feed-lines">
+          <div class="feed-line info">&gt; SYSTEM ONLINE. READY FOR PROMPTS.</div>
+        </div>
+      </div>
+
+      <!-- Real-time command input bar -->
+      <form id="command-form" onsubmit="return false;">
+        <div class="terminal-input-wrapper">
+          <span class="prompt-prefix">EXECUTE&gt;</span>
+          <input 
+            type="text" 
+            id="command-input" 
+            placeholder="Type prompt here (e.g. 'CREATE PLATFORM', 'FREEZE', etc.) or click chips above..." 
+            autocomplete="off" 
+            autocorrect="off" 
+            autocapitalize="off" 
+            spellcheck="false"
+          >
+          <button type="submit" id="submit-cmd-btn" class="inject-btn">INJECT ⏎</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Mobile Virtual Controls -->
+    <div id="touch-controls">
+      <div class="dpad-cluster">
+        <button id="touch-left" class="touch-btn" aria-label="Move Left">◀</button>
+        <button id="touch-right" class="touch-btn" aria-label="Move Right">▶</button>
+      </div>
+      <div class="action-cluster">
+        <button id="touch-jump" class="touch-btn jump-btn" aria-label="Jump">▲ JUMP</button>
+      </div>
+    </div>
+
+    <!-- Bottom Controls & Hints Info Bar -->
+    <footer id="hud-footer">
+      <div class="controls-hint">
+        <span><kbd>A</kbd><kbd>D</kbd> Move</span>
+        <span><kbd>SPACE</kbd>/<kbd>W</kbd> Jump</span>
+        <span><kbd>ENTER</kbd> Focus Prompt</span>
+        <span><kbd>R</kbd> Quick Retry</span>
+      </div>
+      <div class="game-status-tip" id="footer-status-tip">
+        💡 Tip: Click or tap any spot on the canvas to place a platform precisely!
+      </div>
+    </footer>
+  </div>
+
+  <script src="audio.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
